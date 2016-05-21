@@ -1,6 +1,6 @@
 # township-auth
 
-Authentication management module. Inspired by [accountdown](http://npmjs.com/accountdown).
+Manage authentication credentials.
 
 ## Usage
 
@@ -31,9 +31,12 @@ auth.create({
 ```
 
 ## See also
+- [township-access](https://github.com/township/township-access) - manage access authorization scopes
+- [township-token](https://github.com/township/township-token) - create & decode JWT tokens with township auth/access data
+
+### Similar modules
 - [accountdown](http://npmjs.com/accountdown)
 - [authentic](http://npmjs.com/authentic)
 
 ## License
-
 [MIT](LICENSE.md)
