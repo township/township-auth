@@ -1,7 +1,7 @@
 var crypto = require('crypto')
 var shasum = require('shasum')
 
-module.exports = function townshipAccountsBasic (accounts, options) {
+module.exports = function townshipAuthBasic (auth, options) {
   return {
     key: 'basic.email',
     create: function create (key, opts) {
@@ -15,7 +15,7 @@ module.exports = function townshipAccountsBasic (accounts, options) {
     },
     verify: function (opts, callback) {
       if (!opts) return new Error('provider credentials required')
-      accounts.db.get(opts.key, function (err, account) {
+      auth.db.get(opts.key, function (err, account) {
         if (err) return callback(err)
         var password = Buffer(opts.password)
         var salt = Buffer(account.basic.salt, 'hex')

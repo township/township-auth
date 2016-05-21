@@ -1,26 +1,32 @@
 {
-  "name": "township-accounts",
-  "version": "1.0.0",
-  "description": "account management",
+  "name": "township-auth",
+  "version": "2.0.0",
+  "description": "authentication library",
   "main": "index.js",
   "scripts": {
-    "test": "tape tests/*.js | tap-spec"
+    "lint": "standard",
+    "test": "npm run lint && tape tests/*.js | tap-spec"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/township/township-accounts.git"
+    "url": "git+https://github.com/township/township-auth.git"
   },
   "keywords": [
+    "login",
     "accounts",
+    "authentication",
+    "auth",
     "users",
-    "level"
+    "level",
+    "levelup",
+    "leveldown"
   ],
   "author": "sethvincent",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/township/township-accounts/issues"
+    "url": "https://github.com/township/township-auth/issues"
   },
-  "homepage": "https://github.com/township/township-accounts#readme",
+  "homepage": "https://github.com/township/township-auth#readme",
   "devDependencies": {
     "memdb": "^1.3.1",
     "standard": "^7.0.1",
@@ -28,10 +34,7 @@
     "tape": "^4.5.1"
   },
   "dependencies": {
-    "crypto": "0.0.3",
     "each-async": "^1.1.1",
-    "is-email": "^0.1.1",
-    "level-indexer": "^2.0.0",
     "level-simple-indexes": "^2.0.0",
     "shasum": "^1.0.2",
     "subleveldown": "^2.1.0",

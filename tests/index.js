@@ -2,12 +2,12 @@ var test = require('tape')
 var memdb = require('memdb')
 
 test('create an account with basic provider', function (t) {
-  var accounts = require('../index')(memdb(), {
+  var auth = require('../index')(memdb(), {
     providers: {
       basic: require('../basic')
     }
   })
-  accounts.create({
+  auth.create({
     basic: {
       email: 'hi@example.com',
       password: 'supersecret'
@@ -20,22 +20,22 @@ test('create an account with basic provider', function (t) {
 })
 
 test('get an account by key and by email', function (t) {
-  var accounts = require('../index')(memdb(), {
+  var auth = require('../index')(memdb(), {
     providers: {
       basic: require('../basic')
     }
   })
-  accounts.create({
+  auth.create({
     basic: {
       email: 'hi@example.com',
       password: 'supersecret'
     }
   }, function (err, account) {
     t.notOk(err)
-    accounts.get(account.key, function (err, withkey) {
+    auth.get(account.key, function (err, withkey) {
       t.notOk(err, 'no error')
       t.ok(withkey, 'found account with key')
-      accounts.findOne('basic', account.basic.email, function (err, withemail) {
+      auth.findOne('basic', account.basic.email, function (err, withemail) {
         t.notOk(err, 'no error')
         t.ok(withemail, 'found account with email')
         t.end()
@@ -45,19 +45,19 @@ test('get an account by key and by email', function (t) {
 })
 
 test('verify an account using email and password', function (t) {
-  var accounts = require('../index')(memdb(), {
+  var auth = require('../index')(memdb(), {
     providers: {
       basic: require('../basic')
     }
   })
-  accounts.create({
+  auth.create({
     basic: {
       email: 'hi@example.com',
       password: 'supersecret'
     }
   }, function (err, account) {
     t.notOk(err)
-    accounts.verify('basic', {
+    auth.verify('basic', {
       key: account.key,
       email: 'hi@example.com',
       password: 'supersecret'

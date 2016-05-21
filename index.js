@@ -1,21 +1,20 @@
 var createIndexer = require('level-simple-indexes')
 var sublevel = require('subleveldown')
-var isEmail = require('is-email')
 var each = require('each-async')
 var uuid = require('uuid')
 
-module.exports = function townshipAccounts (maindb, options) {
-  var accounts = {}
+module.exports = function townshipAuth (maindb, options) {
+  var auth = {}
   var providers = {}
   var indexes = []
 
   Object.keys(options.providers).forEach(function (key) {
-    var plugin = options.providers[key](accounts, options)
+    var plugin = options.providers[key](auth, options)
     indexes.push(plugin.key)
     providers[key] = plugin
   })
 
-  var db = sublevel(maindb, 'township-accounts', { valueEncoding: 'json' })
+  var db = sublevel(maindb, 'township-auth', { valueEncoding: 'json' })
   var indexdb = sublevel(db, 'indexes')
 
   var indexer = createIndexer(indexdb, {
@@ -25,13 +24,14 @@ module.exports = function townshipAccounts (maindb, options) {
     }
   })
 
-  accounts.db = db
-  accounts.indexdb = indexdb
-  accounts.indexer = indexer
+  auth.db = db
+  auth.indexdb = indexdb
+  auth.indexer = indexer
 
   function getAuthProviders (key, callback) {
     var account = {}
     db.get(key, function (err, data) {
+      if (err) return callback(err)
       var keys = Object.keys(data)
 
       each(keys, function (key, i, next) {
@@ -62,22 +62,22 @@ module.exports = function townshipAccounts (maindb, options) {
     })
   }
 
-  accounts.get = function get (key, callback) {
+  auth.get = function get (key, callback) {
     getAuthProviders(key, callback)
   }
 
-  accounts.findOne = function findOne (provider, key, callback) {
+  auth.findOne = function findOne (provider, key, callback) {
     indexer.findOne(providers[provider].key, key, callback)
   }
 
-  accounts.list = function list (options) {
+  auth.list = function list (options) {
     return db.createReadStream(options)
   }
 
-  accounts.create = function create (opts, callback) {
+  auth.create = function create (opts, callback) {
     if (!opts) throw new Error('providers required')
     if (!callback) throw new Error('callback required')
-    var data = { key: uuid() } 
+    var data = { key: uuid() }
 
     setAuthProviders(data, opts, function (err) {
       if (err) return callback(err)
@@ -88,7 +88,7 @@ module.exports = function townshipAccounts (maindb, options) {
     })
   }
 
-  accounts.update = function update (opts, callback) {
+  auth.update = function update (opts, callback) {
     if (!opts.key) throw new Error('account key is required')
 
     db.get(opts.key, function (err, data) {
@@ -105,15 +105,15 @@ module.exports = function townshipAccounts (maindb, options) {
     })
   }
 
-  accounts.destroy = function destroy (key, callback) {
+  auth.destroy = function destroy (key, callback) {
     if (!key) throw new Error('account key is required')
     db.del(key, callback)
   }
 
-  accounts.verify = function verify (provider, opts, callback) {
+  auth.verify = function verify (provider, opts, callback) {
     var plugin = providers[provider]
     plugin.verify(opts, callback)
   }
 
-  return accounts
+  return auth
 }
