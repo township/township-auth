@@ -20,7 +20,7 @@ module.exports = function townshipAuth (maindb, options) {
   var indexer = createIndexer(indexdb, {
     properties: indexes,
     map: function (key, next) {
-      db.get(key, next)
+      auth.get(key, next)
     }
   })
 
@@ -112,8 +112,11 @@ module.exports = function townshipAuth (maindb, options) {
 
   auth.verify = function verify (provider, opts, callback) {
     var plugin = providers[provider]
-    auth.findOne(provider, opts[plugin.key], function (err, data) {
+    var key = opts[plugin.key.split('.')[1]]
+    if (!key) return callback(new Error('Authorization failed'))
+    auth.findOne(provider, key, function (err, data) {
       if (err) return callback(err)
+      if (!data) return callback(new Error('Authorization failed'))
       opts.key = data.key
       plugin.verify(opts, callback)
     })

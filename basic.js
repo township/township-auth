@@ -3,6 +3,7 @@ var shasum = require('shasum')
 
 module.exports = function townshipAuthBasic (auth, options) {
   return {
+    // key must be named with pattern {providername}.{propertykey} for indexing
     key: 'basic.email',
     create: function create (key, opts) {
       var salt = crypto.randomBytes(16)
