@@ -112,7 +112,11 @@ module.exports = function townshipAuth (maindb, options) {
 
   auth.verify = function verify (provider, opts, callback) {
     var plugin = providers[provider]
-    plugin.verify(opts, callback)
+    auth.findOne(provider, opts[plugin.key], function (err, data) {
+      if (err) return callback(err)
+      opts.key = data.key
+      plugin.verify(opts, callback)
+    })
   }
 
   return auth
