@@ -21,7 +21,6 @@ auth.create({
   }
 }, function (err, account) {
   auth.verify('basic', {
-    key: account.key,
     email: 'hi@example.com',
     password: 'supersecret'
   }, function (err, result) {
