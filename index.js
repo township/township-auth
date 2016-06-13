@@ -1,5 +1,6 @@
 var createIndexer = require('level-simple-indexes')
 var sublevel = require('subleveldown')
+var through = require('through2')
 var each = require('each-async')
 var uuid = require('uuid')
 
@@ -15,7 +16,7 @@ module.exports = function townshipAuth (maindb, options) {
   })
 
   var db = sublevel(maindb, 'township-auth', { valueEncoding: 'json' })
-  var indexdb = sublevel(db, 'indexes')
+  var indexdb = sublevel(maindb, 'township-auth-indexes')
 
   var indexer = createIndexer(indexdb, {
     properties: indexes,
@@ -41,7 +42,8 @@ module.exports = function townshipAuth (maindb, options) {
         }
         var plugin = providers[key]
         account[key] = {}
-        account[key][plugin.key] = data[key][plugin.key]
+        var pluginKey = pluginNameAndKey(plugin.key).key
+        account[key][pluginKey] = data[key][pluginKey]
         next()
       }, function () {
         callback(null, account)
@@ -71,7 +73,16 @@ module.exports = function townshipAuth (maindb, options) {
   }
 
   auth.list = function list (options) {
-    return db.createReadStream(options)
+    function iterator (chunk, enc, next) {
+      var stream = this
+      auth.get(chunk.key, function (err, authData) {
+        if (err) return next(err)
+        stream.push(authData)
+        next()
+      })
+    }
+
+    return db.createReadStream(options).pipe(through.obj(iterator))
   }
 
   auth.create = function create (opts, callback) {
@@ -83,7 +94,7 @@ module.exports = function townshipAuth (maindb, options) {
       if (err) return callback(err)
       indexer.addIndexes(data, function (err) {
         if (err) return callback(err)
-        callback(null, data)
+        auth.get(data.key, callback)
       })
     })
   }
@@ -99,7 +110,7 @@ module.exports = function townshipAuth (maindb, options) {
         if (err) return callback(err)
         indexer.updateIndexes(data, function (err) {
           if (err) return callback(err)
-          callback(null, data)
+          auth.get(data.key, callback)
         })
       })
     })
@@ -112,7 +123,7 @@ module.exports = function townshipAuth (maindb, options) {
 
   auth.verify = function verify (provider, opts, callback) {
     var plugin = providers[provider]
-    var key = opts[plugin.key.split('.')[1]]
+    var key = opts[pluginNameAndKey(plugin.key).key]
     if (!key) return callback(new Error('Authorization failed'))
     auth.findOne(provider, key, function (err, data) {
       if (err) return callback(err)
@@ -123,4 +134,9 @@ module.exports = function townshipAuth (maindb, options) {
   }
 
   return auth
+}
+
+function pluginNameAndKey (key) {
+  var split = key.split('.')
+  return { name: split[0], key: split[1] }
 }

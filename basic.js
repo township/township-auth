@@ -22,7 +22,7 @@ module.exports = function townshipAuthBasic (auth, options) {
         var salt = Buffer(account.basic.salt, 'hex')
         var hash = shasum(Buffer.concat([salt, password]))
         if (hash !== account.basic.hash) return callback(new Error('Account not verified'))
-        else return callback(null, { key: account.key, email: account.basic.email })
+        else return callback(null, { key: account.key, basic: { email: account.basic.email } })
       })
     }
   }

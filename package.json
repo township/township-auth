@@ -1,6 +1,6 @@
 {
   "name": "township-auth",
-  "version": "2.0.3",
+  "version": "2.0.5",
   "description": "authentication library",
   "main": "index.js",
   "scripts": {
@@ -38,6 +38,7 @@
     "level-simple-indexes": "^2.0.0",
     "shasum": "^1.0.2",
     "subleveldown": "^2.1.0",
+    "through2": "^2.0.1",
     "uuid": "^2.0.2"
   }
 }
