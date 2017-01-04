@@ -1,6 +1,6 @@
 {
   "name": "township-auth",
-  "version": "2.0.5",
+  "version": "3.0.0",
   "description": "authentication library",
   "main": "index.js",
   "scripts": {
