@@ -57,8 +57,11 @@ module.exports = function townshipAuth (maindb, options) {
     each(keys, function (key, i, next) {
       var plugin = providers[key]
       var auth = opts[key]
-      data[key] = plugin.create(key, auth)
-      next()
+      plugin.create(key, auth, function (err, val) {
+        if (err) return callback(err)
+        data[key] = val
+        next()
+      })
     }, function () {
       db.put(data.key, data, callback)
     })

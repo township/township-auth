@@ -5,14 +5,15 @@ module.exports = function townshipAuthBasic (auth, options) {
   return {
     // key must be named with pattern {providername}.{propertykey} for indexing
     key: 'basic.email',
-    create: function create (key, opts) {
+    create: function create (key, opts, callback) {
       var salt = crypto.randomBytes(16)
       var password = Buffer(opts.password)
-      return {
+      var res = {
         email: opts.email,
         hash: shasum(Buffer.concat([salt, password])),
         salt: salt.toString('hex')
       }
+      callback(null, res)
     },
     verify: function (opts, callback) {
       if (!opts) return new Error('provider credentials required')
