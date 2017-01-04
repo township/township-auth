@@ -13,11 +13,13 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/) and this p
 ### Added
 * document API
 
-### Fixed
-* only return key, plugin property and plugin key
-
 ### Changed
 * make `create` method of providers async
+
+## v2.0.5
+
+### Fixed
+* only return key, plugin property and plugin key
 
 ## v2.0.3
 
