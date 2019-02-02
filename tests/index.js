@@ -1,12 +1,14 @@
-var test = require('tape')
-var memdb = require('memdb')
+const test = require('tape')
+const memdb = require('memdb')
+const TownshipAuth = require('../index')
 
 test('create an account with basic provider', function (t) {
-  var auth = require('../index')(memdb(), {
+  const auth = new TownshipAuth(memdb(), {
     providers: {
       basic: require('../basic')
     }
   })
+
   auth.create({
     basic: {
       email: 'hi@example.com',
@@ -25,11 +27,12 @@ test('create an account with basic provider', function (t) {
 })
 
 test('get an account by key and by email', function (t) {
-  var auth = require('../index')(memdb(), {
+  const auth = new TownshipAuth(memdb(), {
     providers: {
       basic: require('../basic')
     }
   })
+
   auth.create({
     basic: {
       email: 'hi@example.com',
@@ -46,6 +49,7 @@ test('get an account by key and by email', function (t) {
     auth.get(account.key, function (err, withkey) {
       t.notOk(err, 'no error')
       t.ok(withkey, 'found account with key')
+
       auth.findOne('basic', account.basic.email, function (err, withemail) {
         t.notOk(err, 'no error')
         t.ok(withemail, 'found account with email')
@@ -61,11 +65,12 @@ test('get an account by key and by email', function (t) {
 })
 
 test('verify an account using email and password', function (t) {
-  var auth = require('../index')(memdb(), {
+  const auth = new TownshipAuth(memdb(), {
     providers: {
       basic: require('../basic')
     }
   })
+
   auth.create({
     basic: {
       email: 'hi@example.com',
@@ -78,6 +83,7 @@ test('verify an account using email and password', function (t) {
     t.equal(account.basic.email, 'hi@example.com')
     t.notOk(account.basic.hash)
     t.notOk(account.basic.salt)
+
     auth.verify('basic', {
       key: account.key,
       email: 'hi@example.com',
@@ -96,7 +102,7 @@ test('verify an account using email and password', function (t) {
 })
 
 test('list accounts', function (t) {
-  var auth = require('../index')(memdb(), {
+  const auth = new TownshipAuth(memdb(), {
     providers: {
       basic: require('../basic')
     }
@@ -109,6 +115,7 @@ test('list accounts', function (t) {
     }
   }, function (err, account) {
     t.notOk(err)
+
     var stream = auth.list()
     stream.on('data', function (data) {
       t.ok(data)

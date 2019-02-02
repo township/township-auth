@@ -1,49 +1,71 @@
-var createIndexer = require('level-simple-indexes')
-var sublevel = require('subleveldown')
-var through = require('through2')
-var each = require('each-async')
-var uuid = require('uuid')
+const createIndexer = require('level-simple-indexes')
+const sublevel = require('subleveldown')
+const createLock = require('level-lock')
+const through = require('through2')
+const each = require('each-async')
+const uuid = require('uuid')
+const pump = require('pump')
 
-module.exports = function townshipAuth (maindb, options) {
-  var auth = {}
-  var providers = {}
-  var indexes = []
+/**
+* Create a township auth db
+* @name createTownshipAuth
+* @namespace townshipAuth
+* @param {object} leveldb - an instance of a leveldb created using [level](https://github.com/level/)
+* @param {object} options
+* @param {object} options.providers
+* @return {object}
+* @example
+* const createTownshipAuth = require('township-auth')
+* const level = require('level')
+*
+* const db = level('./db')
+* const auth = createTownshipAuth(db)
+*/
+class TownshipAuth {
+  constructor (leveldb, options) {
+    this.providers = {}
+    this.indexes = []
 
-  Object.keys(options.providers).forEach(function (key) {
-    var plugin = options.providers[key](auth, options)
-    indexes.push(plugin.key)
-    providers[key] = plugin
-  })
+    this.db = sublevel(leveldb, 'township-auth', { valueEncoding: 'json' })
+    this.indexdb = sublevel(leveldb, 'township-auth-indexes')
 
-  var db = sublevel(maindb, 'township-auth', { valueEncoding: 'json' })
-  var indexdb = sublevel(maindb, 'township-auth-indexes')
+    Object.keys(options.providers).forEach((key) => {
+      options.get = (key, callback) => this.db.get(key, callback)
+      const plugin = options.providers[key](options)
+      // TODO: instead of plugin.key use `${plugin.name}-${plugin.indexKey}`
+      this.indexes.push(plugin.key)
+      this.providers[key] = plugin
+    })
 
-  var indexer = createIndexer(indexdb, {
-    properties: indexes,
-    map: function (key, next) {
-      auth.get(key, next)
-    }
-  })
+    this.indexer = createIndexer(this.indexdb, {
+      properties: this.indexes,
+      map: (key, next) => {
+        this.get(key, next)
+      }
+    })
+  }
 
-  auth.db = db
-  auth.indexdb = indexdb
-  auth.indexer = indexer
+  lock (key, mode) {
+    return createLock(this.db, key, mode)
+  }
 
-  function getAuthProviders (key, callback) {
-    var account = {}
-    db.get(key, function (err, data) {
+  _getAuthProviders (key, callback) {
+    const account = {}
+
+    this.db.get(key, (err, data) => {
       if (err) return callback(err)
-      var keys = Object.keys(data)
+      const keys = Object.keys(data)
 
-      each(keys, function (key, i, next) {
+      each(keys, (key, i, next) => {
         if (key === 'key') {
           account.key = data.key
           return next()
         }
-        var plugin = providers[key]
+
+        const provider = this.providers[key]
         account[key] = {}
-        var pluginKey = pluginNameAndKey(plugin.key).key
-        account[key][pluginKey] = data[key][pluginKey]
+        const providerKey = providerNameAndKey(provider.key).key
+        account[key][providerKey] = data[key][providerKey]
         next()
       }, function () {
         callback(null, account)
@@ -51,95 +73,152 @@ module.exports = function townshipAuth (maindb, options) {
     })
   }
 
-  function setAuthProviders (data, opts, callback) {
-    var keys = Object.keys(opts)
+  _setAuthProviders (data, opts, callback) {
+    const keys = Object.keys(opts)
     if (!keys.length) throw new Error('providers required')
-    each(keys, function (key, i, next) {
-      var plugin = providers[key]
-      var auth = opts[key]
-      plugin.create(key, auth, function (err, val) {
+
+    each(keys, (key, i, next) => {
+      const provider = this.providers[key]
+      const auth = opts[key]
+
+      provider.create(key, auth, function (err, val) {
         if (err) return callback(err)
         data[key] = val
         next()
       })
-    }, function () {
-      db.put(data.key, data, callback)
+    }, () => {
+      this.db.put(data.key, data, callback)
     })
   }
 
-  auth.get = function get (key, callback) {
-    getAuthProviders(key, callback)
+  /**
+  * Get auth providers for a user
+  *
+  * @name auth.get
+  * @memberof townshipAuth
+  * @param {string} key - the key for the auth providers
+  * @param {function} callback - callback with `err`, `data` arguments
+  */
+  get (key, callback) {
+    this._getAuthProviders(key, callback)
   }
 
-  auth.findOne = function findOne (provider, key, callback) {
-    indexer.findOne(providers[provider].key, key, callback)
+  /**
+  * Get a specific auth provider for a user
+  *
+  * @name auth.findOne
+  * @memberof townshipAuth
+  * @param {string} provider - the name of the provider
+  * @param {string} key - the key for the auth providers
+  * @param {function} callback - callback with `err`, `data` arguments
+  */
+  findOne (provider, key, callback) {
+    console.log('provider', provider, key)
+    console.log('this.providers', this.providers)
+    this.indexer.findOne(this.providers[provider].key, key, callback)
   }
 
-  auth.list = function list (options) {
+  /**
+  * Get auth providers for all users
+  *
+  * @name auth.list
+  * @memberof townshipAuth
+  * @param {object} options - options object
+  * @param {string} key - the key for the auth providers
+  * return {object} a stream where each `data` event is a user and their providers
+  */
+  list (options) {
+    const self = this
+
     function iterator (chunk, enc, next) {
-      var stream = this
-      auth.get(chunk.key, function (err, authData) {
+      const stream = this
+
+      self.get(chunk.key, (err, authData) => {
         if (err) return next(err)
         stream.push(authData)
         next()
       })
     }
 
-    return db.createReadStream(options).pipe(through.obj(iterator))
+    return pump(this.db.createReadStream(options), through.obj(iterator))
   }
 
-  auth.create = function create (opts, callback) {
-    if (!opts) throw new Error('providers required')
+  /**
+  * Create a user with auth providers
+  *
+  * @name auth.create
+  * @memberof townshipAuth
+  * @param {object} options - options object
+  * @param {string} key - the key for the auth providers
+  * return {object} a stream where each `data` event is a user and their providers
+  */
+  create (options, callback) {
+    if (!options) throw new Error('providers required')
     if (!callback) throw new Error('callback required')
-    var data = { key: uuid() }
+    const data = { key: uuid() }
+    const unlock = this.lock(data.key)
 
-    setAuthProviders(data, opts, function (err) {
+    this._setAuthProviders(data, options, (err) => {
       if (err) return callback(err)
-      indexer.addIndexes(data, function (err) {
+
+      this.indexer.addIndexes(data, (err) => {
         if (err) return callback(err)
-        auth.get(data.key, callback)
-      })
-    })
-  }
 
-  auth.update = function update (opts, callback) {
-    if (!opts.key) throw new Error('account key is required')
-
-    db.get(opts.key, function (err, data) {
-      if (err) return callback(err)
-      delete opts.key
-
-      setAuthProviders(data, opts, function (err) {
-        if (err) return callback(err)
-        indexer.updateIndexes(data, function (err) {
+        this.get(data.key, (err, result) => {
+          unlock()
           if (err) return callback(err)
-          auth.get(data.key, callback)
+          callback(null, result)
         })
       })
     })
   }
 
-  auth.destroy = function destroy (key, callback) {
-    if (!key) throw new Error('account key is required')
-    db.del(key, callback)
-  }
+  update (options, callback) {
+    if (!options.key) throw new Error('account key is required')
+    const unlock = this.lock(options.key)
 
-  auth.verify = function verify (provider, opts, callback) {
-    var plugin = providers[provider]
-    var key = opts[pluginNameAndKey(plugin.key).key]
-    if (!key) return callback(new Error('Authorization failed'))
-    auth.findOne(provider, key, function (err, data) {
+    this.db.get(options.key, (err, data) => {
       if (err) return callback(err)
-      if (!data) return callback(new Error('Authorization failed'))
-      opts.key = data.key
-      plugin.verify(opts, callback)
+      delete options.key
+
+      this._setAuthProviders(data, options, (err) => {
+        if (err) return callback(err)
+
+        this.indexer.updateIndexes(data, (err) => {
+          if (err) return callback(err)
+
+          this.get(data.key, (err, result) => {
+            unlock()
+            if (err) return callback(err)
+            callback(null, result)
+          })
+        })
+      })
     })
   }
 
-  return auth
+  destroy (key, callback) {
+    if (!key) throw new Error('account key is required')
+    this.db.del(key, callback)
+  }
+
+  verify (providerName, opts, callback) {
+    const provider = this.providers[providerName]
+    const key = opts[providerNameAndKey(provider.key).key]
+    if (!key) return callback(new Error('Authorization failed'))
+
+    this.findOne(providerName, key, function (err, data) {
+      if (err) return callback(err)
+      if (!data) return callback(new Error('Authorization failed'))
+      opts.key = data.key
+      provider.verify(opts, callback)
+    })
+  }
 }
 
-function pluginNameAndKey (key) {
-  var split = key.split('.')
+function providerNameAndKey (key) {
+  const split = key.split('.')
   return { name: split[0], key: split[1] }
 }
+
+module.exports = TownshipAuth
