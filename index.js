@@ -113,8 +113,6 @@ class TownshipAuth {
   * @param {function} callback - callback with `err`, `data` arguments
   */
   findOne (provider, key, callback) {
-    console.log('provider', provider, key)
-    console.log('this.providers', this.providers)
     this.indexer.findOne(this.providers[provider].key, key, callback)
   }
 
