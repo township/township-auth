@@ -157,10 +157,16 @@ class TownshipAuth {
     const unlock = this.lock(data.key)
 
     this._setAuthProviders(data, options, (err) => {
-      if (err) return callback(err)
+      if (err) {
+        unlock()
+        return callback(err)
+      }
 
       this.indexer.addIndexes(data, (err) => {
-        if (err) return callback(err)
+        if (err) {
+          unlock()
+          return callback(err)
+        }
 
         this.get(data.key, (err, result) => {
           unlock()
@@ -176,14 +182,23 @@ class TownshipAuth {
     const unlock = this.lock(options.key)
 
     this.db.get(options.key, (err, data) => {
-      if (err) return callback(err)
+      if (err) {
+        unlock()
+        return callback(err)
+      }
       delete options.key
 
       this._setAuthProviders(data, options, (err) => {
-        if (err) return callback(err)
+        if (err) {
+          unlock()
+          return callback(err)
+        }
 
         this.indexer.updateIndexes(data, (err) => {
-          if (err) return callback(err)
+          if (err) {
+            unlock()
+            return callback(err)
+          }
 
           this.get(data.key, (err, result) => {
             unlock()
